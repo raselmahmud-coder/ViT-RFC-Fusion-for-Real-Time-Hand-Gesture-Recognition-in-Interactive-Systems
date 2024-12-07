@@ -107,7 +107,7 @@ for label in range(10):
 
 
 
-f = open('./Datasets/data_sign.pickle', 'wb')
+f = open('./Datasets/Models/data_sign.pickle', 'wb')
 pickle.dump({'data': data, 'labels': labels}, f)
 print("Successfully saved the file", pickle.ADDITEMS)
 f.close()
