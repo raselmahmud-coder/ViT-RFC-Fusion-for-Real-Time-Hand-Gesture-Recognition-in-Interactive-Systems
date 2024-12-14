@@ -1,100 +1,114 @@
-import cv2
+import os
 import torch
+import cv2
 import numpy as np
 from PIL import Image
 from torchvision import transforms
 from transformers import ViTForImageClassification
+from torch.utils.data import DataLoader
+from torchvision.datasets import ImageFolder
+import mediapipe as mp
 
-# Load the trained model (adjust path as needed)
-checkpoint_dir = "./vit_results/checkpoint-1582"
+# Load the pretrained ViT model
+checkpoint_dir = "./vit_trained_model"
 model = ViTForImageClassification.from_pretrained(checkpoint_dir)
 model.eval()
 
-# Define the preprocessing pipeline for images
+# Define the preprocessing pipeline for the ViT model
 transform = transforms.Compose([
     transforms.Resize((224, 224)),  # Resize image to 224x224 for ViT input
     transforms.ToTensor(),
-    transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])  # Standard normalization
+    transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[
+                         0.229, 0.224, 0.225])  # Standard normalization
 ])
 
-# Function to process image and get prediction
-def process_and_predict(image):
-    # Convert the image to PIL format for transformation
-    img = Image.fromarray(image).convert('RGB')
+# Path to validation dataset
+val_dir = "./Datasets/Chinese Hand Gestures Number Recognition Dataset/aug_imgs_split/train"
 
-    # Apply the transformations
-    img_tensor = transform(img).unsqueeze(0)  # Add batch dimension
+# Load the dataset using ImageFolder
+val_dataset = ImageFolder(root=val_dir, transform=transform)
 
+# Create a DataLoader with shuffling enabled
+val_loader = DataLoader(val_dataset, batch_size=32, shuffle=True)
+
+# Function to preprocess the detected hand region and get the model prediction
+
+
+def process_and_predict(image_tensor):
     # Run the image through the model
     with torch.no_grad():
-        outputs = model(img_tensor)
+        outputs = model(image_tensor.unsqueeze(0))  # Add batch dimension
         logits = outputs.logits
-        confidences = torch.softmax(logits, dim=1)  # Confidence scores
-        preds = torch.argmax(logits, dim=1)  # Predicted class
-        return preds.item(), confidences[0, preds.item()].item()
+        confidences = torch.softmax(logits, dim=1)
+        predicted_class = torch.argmax(logits, dim=1).item()
+        confidence = confidences[0, predicted_class].item()
+    return predicted_class, confidence
 
-# Function to detect if a hand is in the frame
-def detect_hand(frame):
-    # Convert the frame to grayscale
-    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-    
-    # Apply GaussianBlur to reduce noise and improve contour detection
-    blurred = cv2.GaussianBlur(gray, (5, 5), 0)
-    
-    # Apply binary thresholding to detect hand contours (simple method)
-    _, thresh = cv2.threshold(blurred, 60, 255, cv2.THRESH_BINARY)
+# Function to set the window position and size
 
-    # Find contours in the thresholded image
-    contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
-    # If contours are found, it indicates a hand is present
-    if contours:
-        # Find the largest contour (most likely the hand)
-        largest_contour = max(contours, key=cv2.contourArea)
-        if cv2.contourArea(largest_contour) > 5000:  # Area threshold to filter out small contours
-            return True  # Hand detected
-    return False  # No hand detected
+def configure_window(window_name, width=800, height=600, center=True):
+    cv2.namedWindow(window_name, cv2.WINDOW_NORMAL)  # Allow resizing
+    cv2.resizeWindow(window_name, width, height)  # Set custom width and height
 
-# Open the webcam (0 is the default camera)
-cap = cv2.VideoCapture(0)
+    if center:
+        # Get screen resolution
+        screen_width = cv2.getWindowImageRect(window_name)[2]
+        screen_height = cv2.getWindowImageRect(window_name)[3]
 
-# Check if the webcam is opened correctly
-if not cap.isOpened():
-    print("Error: Could not open webcam")
-    exit()
+        # Calculate center position
+        x = (screen_width - width) // 2
+        y = (screen_height - height) // 2
 
-while True:
-    # Capture frame-by-frame
-    ret, frame = cap.read()
-    if not ret:
-        print("Error: Failed to capture frame")
-        break
+        # Position the window at the center
+        cv2.moveWindow(window_name, x, y)
 
-    # Detect if a hand is present in the frame
-    hand_detected = detect_hand(frame)
 
-    if hand_detected:
-        # If hand is detected, get prediction for the current frame
-        predicted_class, confidence = process_and_predict(frame)
+# Iterate over the DataLoader to get random batches of images
+for batch_idx, (images, labels) in enumerate(val_loader):
+    for idx in range(images.size(0)):
+        img_tensor = images[idx]  # Single image tensor
+        label = labels[idx]       # Corresponding label
 
-        # Format the predicted class with leading zeros (e.g., 01, 02, 10)
-        predicted_class_str = f"{predicted_class+1}" 
-        confidence_str = f"Confidence: {confidence*100:.2f}%"
+        # Convert image tensor to NumPy array for visualization
+        # Convert (C, H, W) to (H, W, C)
+        img_np = img_tensor.permute(1, 2, 0).numpy()
+        img_np = img_np * np.array([0.229, 0.224, 0.225]) + \
+            np.array([0.485, 0.456, 0.406])  # Denormalize
+        # Ensure pixel values are in range [0, 1]
+        img_np = np.clip(img_np, 0, 1)
+        # Convert to [0, 255] range for OpenCV
+        img_np = (img_np * 255).astype(np.uint8)
 
-        # Put the predicted class and confidence on the frame
-        cv2.putText(frame, f"Predicted Digit: {predicted_class_str}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 2)
-        cv2.putText(frame, confidence_str, (10, 70), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+        frame_rgb = cv2.cvtColor(img_np, cv2.COLOR_RGB2BGR)
+
+        # Predict the digit using the pretrained model
+        predicted_class, confidence = process_and_predict(img_tensor)
+
+        # Add text for actual label and prediction
+        # Adjust for 1-based indexing
+        predicted_class_str = f"{predicted_class + 1}"
+        confidence_str = f"{confidence * 100:.2f}%"
+        # Adjust for 1-based indexing
+        actual_label_str = f"Actual Number: {label + 1}"
+        color = (0, 0, 255) if label != predicted_class else (0, 207, 13)
+
+        cv2.putText(frame_rgb, actual_label_str, (3, 10),
+                    cv2.FONT_HERSHEY_TRIPLEX, 0.4, (255, 0, 156), 1)
+        cv2.putText(frame_rgb, f"Predict: {predicted_class_str} Conf.{confidence_str}", (
+            3, 25), cv2.FONT_HERSHEY_TRIPLEX, 0.4, color, 1)
+
+        # Display the image with annotations
+        window_name = "Hand Digit Recognition"
+        configure_window(window_name, width=700, height=550, center=True)
+        cv2.imshow(window_name, frame_rgb)
+        key = cv2.waitKey(0)  # Wait for key press to move to the next image
+
+        if key & 0xFF == ord('q'):
+            break  # Exit loop if 'q' is pressed
+
     else:
-        # If no hand is detected, don't display any text
-        cv2.putText(frame, "No Hand Detected", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
+        continue
+    break
 
-    # Display the resulting frame
-    cv2.imshow('Real-Time Hand Digit Recognition', frame)
-
-    # Break the loop on pressing 'q'
-    if cv2.waitKey(1) & 0xFF == ord('q'):
-        break
-
-# Release the webcam and close OpenCV windows
-cap.release()
 cv2.destroyAllWindows()
