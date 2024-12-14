@@ -23,10 +23,11 @@ This project demonstrates the application of a Vision Transformer (ViT) model fo
 The goal is to develop an interactive, real-time system that can recognize hand signs and provide accurate predictions, making it applicable for applications such as virtual sign language recognition, gesture-based control systems, accessible people use-case and educational tools.
 
 ## Video Demo
-<video controls width="640">
-  <source src="./Results/Video_demo.mp4" type="video/mp4">
+<video controls width="60%">
+  <source src="https://github.com/raselmahmud-coder/real-time_sign_recognition/blob/main/Results/Video_demo.mp4" type="video/mp4">
   Your browser does not support the video tag.
 </video>
+Or [Download the demo video](./results/demo.mp4)
 
 ## Requirements
 Before running the project, ensure you have the following dependencies installed:
