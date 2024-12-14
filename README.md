@@ -27,7 +27,7 @@ The goal is to develop an interactive, real-time system that can recognize hand 
   <source src="https://github.com/raselmahmud-coder/real-time_sign_recognition/blob/main/Results/Video_demo.mp4" type="video/mp4">
   Your browser does not support the video tag.
 </video>
-Or [Download the demo video](./results/demo.mp4)
+Or [Download the demo video](./Results/Video_demo.mp4)
 
 ## Requirements
 Before running the project, ensure you have the following dependencies installed:
