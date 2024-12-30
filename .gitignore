@@ -1,4 +1,3 @@
 /signDetection
 Datasets/*
-vit_results/*
-vit_trained_model/*
+Trained_Results/*
