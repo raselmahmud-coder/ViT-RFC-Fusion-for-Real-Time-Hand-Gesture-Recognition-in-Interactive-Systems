@@ -1,3 +1,5 @@
+# vit_training.py
+from pathlib import Path
 import torch
 from torch import nn
 from transformers import ViTForImageClassification, ViTImageProcessor, TrainingArguments, Trainer, EarlyStoppingCallback, get_scheduler
@@ -7,42 +9,45 @@ from datasets import Dataset
 from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score
 from transformers import default_data_collator
 import numpy as np
-import torch.nn.functional as F
-from torch.utils.data import DataLoader
+from PIL import Image
 
-# Data transformations
-transform_train = transforms.Compose([
-    transforms.RandomHorizontalFlip(p=0.5),
-    transforms.RandomVerticalFlip(p=0.2),
-    transforms.ToTensor()
-])
-
-transform_val = transforms.Compose([
-    transforms.ToTensor()
-])
-
-data_dir = "./Datasets/Chinese Hand Gestures Number Recognition Dataset/aug_imgs_split"
-train_dataset = ImageFolder(root=f"{data_dir}/train", transform=transform_train)
-val_dataset = ImageFolder(root=f"{data_dir}/val", transform=transform_val)
-test_dataset = ImageFolder(root=f"{data_dir}/test", transform=transform_val)
-
-# Convert to HuggingFace dataset
-def convert_to_hf_dataset(image_folder_dataset, feature_extractor):
-    pixel_values = []
-    labels = []
-    for img, label in image_folder_dataset:
-        img_np = img.permute(1, 2, 0).numpy()
-        processed = feature_extractor(images=img_np, return_tensors="pt")
-        pixel_values.append(processed["pixel_values"][0])
-        labels.append(label)
-    return Dataset.from_dict({"pixel_values": pixel_values, "label": labels})
-
+# Data transformations (handled within the Dataset)
 feature_extractor = ViTImageProcessor.from_pretrained("google/vit-base-patch16-224", do_rescale=False)
-train_dataset_hf = convert_to_hf_dataset(train_dataset, feature_extractor)
-val_dataset_hf = convert_to_hf_dataset(val_dataset, feature_extractor)
+
+# Prepare ImageFolder datasets
+data_dir = Path('../Datasets/CSL_Dataset/aug_imgs_split')
+train_image_folder = ImageFolder(root=f"{data_dir}/train")
+val_image_folder = ImageFolder(root=f"{data_dir}/val")
+
+def get_image_paths_and_labels(image_folder):
+    paths = [str(path) for path, _ in image_folder.imgs]
+    labels = [label for _, label in image_folder.imgs]
+    return {"image_path": paths, "label": labels}
+
+train_data = get_image_paths_and_labels(train_image_folder)
+val_data = get_image_paths_and_labels(val_image_folder)
+
+train_dataset_hf = Dataset.from_dict(train_data)
+val_dataset_hf = Dataset.from_dict(val_data)
+
+# Define preprocessing function
+def preprocess_function(examples):
+    images = [Image.open(path).convert("RGB") for path in examples["image_path"]]
+    processed = feature_extractor(images=images, return_tensors="pt")
+    # Flatten the batch dimension
+    pixel_values = processed["pixel_values"]
+    return {"pixel_values": pixel_values, "label": examples["label"]}
+
+# Apply preprocessing
+train_dataset_hf = train_dataset_hf.map(preprocess_function, batched=True, batch_size=32, remove_columns=["image_path"])
+val_dataset_hf = val_dataset_hf.map(preprocess_function, batched=True, batch_size=32, remove_columns=["image_path"])
+
+# Set format for PyTorch
+train_dataset_hf.set_format(type="torch", columns=["pixel_values", "label"])
+val_dataset_hf.set_format(type="torch", columns=["pixel_values", "label"])
 
 # Model setup
-num_classes = len(train_dataset.classes)
+num_classes = len(train_image_folder.classes)
 model = ViTForImageClassification.from_pretrained(
     "google/vit-base-patch16-224",
     num_labels=num_classes,
@@ -62,7 +67,7 @@ for name, param in model.named_parameters():
 
 # Training arguments
 training_args = TrainingArguments(
-    output_dir="./vit_results",
+    output_dir=Path("../Trained_Results/CSL_ViT_results"),
     load_best_model_at_end=True,  # Save the best model based on validation metrics
     eval_strategy="epoch",
     save_strategy="epoch",
@@ -71,7 +76,7 @@ training_args = TrainingArguments(
     num_train_epochs=30,
     learning_rate=5e-6,
     weight_decay=0.05,
-    logging_dir="./logs",
+    logging_dir=Path("../Trained_Results/CSL_vit_results_logs"),
     logging_steps=10,
     metric_for_best_model="f1",
     greater_is_better=True,
@@ -125,4 +130,3 @@ trainer = Trainer(
 
 # Start training
 trainer.train()
-trainer.save_model("./vit_trained_model")
