@@ -1,6 +1,8 @@
 # ViT-RFC Fusion for Real-Time Hand Gesture Recognition in Interactive Systems
 
-This project implements a real-time hand digit recognition system using the Vision Transformer (ViT) model and OpenCV for webcam input. The model is trained to recognize hand gestures representing digits (0-9) from the Chinese Hand Gesture Number Recognition Dataset.
+Hand gesture recognition is crucial for facilitating seamless human-computer interaction, particularly in applications involving sign languages and numerical representations. This study focuses on the real-time recognition of Chinese Sign Language (CSL) for numbers 1 to 10 and American Sign Language (ASL) hand gestures for letters A to Z. Two distinct datasets were utilized, comprising over 5,000 CSL images and 31,200 ASL images. The models were trained using Vision Transformer (ViT) and Random Forest Classifiers (RFC).
+
+For the CSL dataset, the ViT model achieved <b> an accuracy of 93.60%, while the RFC model achieved 95.63%. In the ASL dataset, the ViT model reached an accuracy of 87.60%, and the RFC model achieved an impressive 99.89%</b>. These results demonstrate the effectiveness of traditional machine learning architectures in handling complex gesture recognition tasks for these datasets.
 
 ## Features
 - Real-time hand gesture recognition using a webcam
@@ -8,19 +10,6 @@ This project implements a real-time hand digit recognition system using the Visi
 - Confidence score for each prediction
 - Displays predicted digit and confidence on the video feed
 - Hand detection ensures prediction is only made when a hand is detected
-
-## Table of Contents
-1. [Project Overview](#project-overview)
-2. [Requirements](#requirements)
-3. [Setup Instructions](#setup-instructions)
-4. [Usage](#usage)
-5. [License](#license)
-6. [Acknowledgements](#acknowledgements)
-
-## Project Overview
-This project demonstrates the application of a Vision Transformer (ViT) model for real-time hand digit recognition. The model was trained on a custom dataset of approximately 5000 containing images of hand gestures representing digits (1-10) and can classify them based on webcam input. The system detects 87% accurately in this tiny dataset.
-
-The goal is to develop an interactive, real-time system that can recognize hand signs and provide accurate predictions, making it applicable for applications such as virtual sign language recognition, gesture-based control systems, accessible people use-case and educational tools.
 
 ## Video Demo
 
