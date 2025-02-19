@@ -1,4 +1,4 @@
-# Real-Time Hand Digit Recognition using ViT (Vision Transformer)
+# ViT-RFC Fusion for Real-Time Hand Gesture Recognition in Interactive Systems
 
 This project implements a real-time hand digit recognition system using the Vision Transformer (ViT) model and OpenCV for webcam input. The model is trained to recognize hand gestures representing digits (0-9) from the Chinese Hand Gesture Number Recognition Dataset.
 
